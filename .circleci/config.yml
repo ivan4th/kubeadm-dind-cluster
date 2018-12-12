@@ -5,7 +5,7 @@ defaults: &defaults
 
 env: &env
   DOCKER_VERSION: "17.03.0-ce"
-  KDC_VERSIONS: "1.9 1.10 1.11 1.12"
+  KDC_VERSIONS: "1.10 1.11 1.12 1.13"
   IMAGE_NAME: "mirantis/kubeadm-dind-cluster"
   PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/root/.kubeadm-dind-cluster
   # prevent dind-cluster*.sh from trying to pull the image
@@ -444,13 +444,6 @@ jobs:
         paths:
         - images.tar
 
-  test_multiple_clusters_1.9:
-    <<: *defaults
-    environment:
-      <<: *env
-      DIND_IMAGE: mirantis/kubeadm-dind-cluster:v1.9
-    <<: *test_multiple_clusters
-
   test_multiple_clusters_1.10:
     <<: *defaults
     environment:
@@ -484,47 +477,15 @@ jobs:
       <<: *env
       DIND_IMAGE: mirantis/kubeadm-dind-cluster:v1.12
     <<: *test_multiple_clusters
+    
+  test_multiple_clusters_1.13:
+    <<: *defaults
+    environment:
+      <<: *env
+      DIND_IMAGE: mirantis/kubeadm-dind-cluster:v1.13
+    <<: *test_multiple_clusters
 
   # TODO: Test multicluster dual stack, when implemented
-
-  test_1.9:
-    <<: *defaults
-    environment:
-      <<: *env
-      DIND_IMAGE: mirantis/kubeadm-dind-cluster:v1.9
-    <<: *test
-
-  test_1.9_flannel:
-    <<: *defaults
-    environment:
-      <<: *env
-      DIND_IMAGE: mirantis/kubeadm-dind-cluster:v1.9
-      CNI_PLUGIN: flannel
-    <<: *test
-
-  test_1.9_calico:
-    <<: *defaults
-    environment:
-      <<: *env
-      DIND_IMAGE: mirantis/kubeadm-dind-cluster:v1.9
-      CNI_PLUGIN: calico
-    <<: *test
-
-  test_1.9_calico_kdd:
-    <<: *defaults
-    environment:
-      <<: *env
-      DIND_IMAGE: mirantis/kubeadm-dind-cluster:v1.9
-      CNI_PLUGIN: calico-kdd
-    <<: *test
-
-  test_1.9_weave:
-    <<: *defaults
-    environment:
-      <<: *env
-      DIND_IMAGE: mirantis/kubeadm-dind-cluster:v1.9
-      CNI_PLUGIN: weave
-    <<: *test
 
   test_1.10:
     <<: *defaults
@@ -716,14 +677,61 @@ jobs:
   test_1.12_ipv4_only:
     environment:
       <<: *env
-      TEST_K8S_VER: 'v1.9'
+      TEST_K8S_VER: 'v1.12'
     <<: *test_ipv4_only
 
-  test_1.9_ipv6_only_nat64:
+  test_1.13:
+    <<: *defaults
     environment:
       <<: *env
-      TEST_K8S_VER: 'v1.9'
-    <<: *test_ipv6_only
+      DIND_IMAGE: mirantis/kubeadm-dind-cluster:v1.13
+    <<: *test
+
+  test_1.13_flannel:
+    <<: *defaults
+    environment:
+      <<: *env
+      DIND_IMAGE: mirantis/kubeadm-dind-cluster:v1.13
+      CNI_PLUGIN: flannel
+    <<: *test
+
+  test_1.13_calico:
+    <<: *defaults
+    environment:
+      <<: *env
+      DIND_IMAGE: mirantis/kubeadm-dind-cluster:v1.13
+      CNI_PLUGIN: calico
+    <<: *test
+
+  test_1.13_calico_kdd:
+    <<: *defaults
+    environment:
+      <<: *env
+      DIND_IMAGE: mirantis/kubeadm-dind-cluster:v1.13
+      CNI_PLUGIN: calico-kdd
+    <<: *test
+
+  test_1.13_weave:
+    <<: *defaults
+    environment:
+      <<: *env
+      DIND_IMAGE: mirantis/kubeadm-dind-cluster:v1.13
+      CNI_PLUGIN: weave
+    <<: *test
+
+  test_1.13_ptp:
+    <<: *defaults
+    environment:
+      <<: *env
+      DIND_IMAGE: mirantis/kubeadm-dind-cluster:v1.12
+      CNI_PLUGIN: ptp
+    <<: *test
+
+  test_1.13_ipv4_only:
+    environment:
+      <<: *env
+      TEST_K8S_VER: 'v1.13'
+    <<: *test_ipv4_only
 
   test_1.10_ipv6_only_nat64:
     environment:
@@ -735,13 +743,6 @@ jobs:
     environment:
       <<: *env
       TEST_K8S_VER: 'v1.11'
-    <<: *test_ipv6_only
-
-  test_1.9_ipv6_only_ext_aaaa:
-    environment:
-      <<: *env
-      TEST_K8S_VER: 'v1.9'
-      DIND_ALLOW_AAAA_USE: 'true'
     <<: *test_ipv6_only
 
   test_1.10_ipv6_only_ext_aaaa:
@@ -987,11 +988,6 @@ workflows:
             - master
             - stable
         requires:
-        # - test_1.9
-        # - test_1.9_flannel
-        # - test_1.9_calico
-        # - test_1.9_calico_kdd
-        # - test_1.9_weave
         # - test_1.10
         # - test_1.10_flannel
         # - test_1.10_calico
@@ -1025,3 +1021,10 @@ workflows:
         # - test_1.10_ipv6_only_ext_aaaa
         - test_1.11_ipv6_only_ext_aaaa
         - test_1.11_dual_stack_v4_svc_net
+        - test_1.13
+        - test_1.13_containerd
+        - test_1.13_flannel
+        - test_1.13_calico_kdd
+        - test_1.13_weave
+        - test_1.13_ptp
+        - test_1.13_ipv4_only

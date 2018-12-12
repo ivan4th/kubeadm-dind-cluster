@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright 2017 Mirantis
+# Copyright 2018 Mirantis
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -21,6 +21,8 @@ KUBEADM_URL="${KUBEADM_URL:-}"
 HYPERKUBE_URL="${HYPERKUBE_URL:-}"
 KUBEADM_SHA1=${KUBEADM_SHA1:-}
 HYPERKUBE_SHA1=${HYPERKUBE_SHA1:-}
+GH_RELEASE_USER="kubernetes-sigs"
+GH_RELEASE_TEST_USER="ivan4th"
 
 # FIXME: use k8s version specific list of images to pre-pull
 # prepull_images=(gcr.io/google_containers/etcd-amd64:3.0.17
@@ -116,4 +118,55 @@ function dind::build-image {
            --build-arg HYPERKUBE_URL="${HYPERKUBE_URL}" \
            --build-arg HYPERKUBE_SHA1="${HYPERKUBE_SHA1}" \
            .
+}
+
+function dind::kubectl-build-var {
+    local version="${1/v/}"
+    local platform_suffix=""
+    if [[ ${2} = darwin ]]; then
+        platform_suffix="_DARWIN"
+    fi
+    local what="${3}"
+    eval "echo \${KUBECTL${platform_suffix}_${what}_${version//./_}}"
+}
+
+function release_description {
+    local -a tag="${1}"
+    shift
+    git tag -l --format='%(contents:body)' "${tag}"
+    echo
+    echo "SHA256 sums for the files:"
+    echo '```'
+    (cd _output && sha256sum "$@")
+    echo '```'
+}
+
+function release {
+    local tag="${1}"
+    shift
+    local gh_user="${GH_RELEASE_USER}"
+    if [[ ${tag} =~ test ]]; then
+        gh_user="${GH_RELEASE_TEST_USER}"
+    fi
+    local -a opts=(--user "${gh_user}" --repo virtlet --tag "${tag}")
+    local -a files=($(cd fixed && ls))
+    local description="$(release_description "${tag}" "${files[@]}")"
+    local pre_release=
+    if [[ ${tag} =~ -(test|pre).*$ ]]; then
+        pre_release="--pre-release"
+    fi
+    if github-release --quiet delete "${opts[@]}"; then
+        echo >&2 "Replacing the old release"
+    fi
+    github-release release "${opts[@]}" \
+                   --name "$(git tag -l --format='%(contents:subject)' "${tag}")" \
+                   --description "${description}" \
+                   ${pre_release}
+    for filename in "${files[@]}"; do
+        echo >&2 "Uploading: ${filename}"
+        github-release upload "${opts[@]}" \
+                       --name "${filename}" \
+                       --replace \
+                       --file "fixed/${filename}"
+    done
 }

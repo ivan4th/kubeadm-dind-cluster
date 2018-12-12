@@ -19,12 +19,31 @@ set -o pipefail
 set -o errtrace
 
 DIND_ROOT=$(dirname "${BASH_SOURCE}")/..
+source "$DIND_ROOT/build/funcs.sh"
 
 fixed_dir="${DIND_ROOT}/fixed"
 mkdir -p "${fixed_dir}"
-for tag in v1.9 v1.10 v1.11 v1.12 stable; do
+
+for tag in v1.10 v1.11 v1.12 v1.13; do
   dest="${fixed_dir}/dind-cluster-${tag}.sh"
-  sed "s@#%CONFIG%@EMBEDDED_CONFIG=y;DIND_IMAGE=mirantis/kubeadm-dind-cluster:${tag}@" \
+  # $(grep '^[^#]*=' "${DIND_ROOT}/build/buildconf.sh")
+  kubectl_linux_url="$(dind::kubectl-build-var "${tag}" linux URL)"
+  kubectl_darwin_url="$(dind::kubectl-build-var "${tag}" darwin URL)"
+  if [[ ${kubectl_linux_url} =~ /(v[0-9.]*)/ ]]; then
+    kubectl_version="${BASH_REMATCH[1]}"
+  else
+    echo >&2 "can't get kubectl version from url: ${kubectl_linux_url}"
+  fi
+  vars=(EMBEDDED_CONFIG=y
+        DIND_IMAGE=mirantis/kubeadm-dind-cluster:\${DIND_FIXED_IMAGE_TAG:-${tag}}
+        DOWNLOAD_KUBECTL=y
+        KUBECTL_VERSION=${kubectl_version}
+        KUBECTL_LINUX_SHA1=$(dind::kubectl-build-var "${tag}" linux SHA1)
+        KUBECTL_LINUX_URL="${kubectl_linux_url}"
+        KUBECTL_DARWIN_SHA1=$(dind::kubectl-build-var "${tag}" darwin SHA1)
+        KUBECTL_DARWIN_URL="${kubectl_darwin_url}")
+  var_str=$(IFS=';'; echo "${vars[*]}")
+  sed "s@#%CONFIG%@${var_str}@" \
       "${DIND_ROOT}/dind-cluster.sh" >"${dest}"
   chmod +x "${dest}"
 done
